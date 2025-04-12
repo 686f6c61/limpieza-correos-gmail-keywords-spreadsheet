@@ -1,73 +1,79 @@
 /**
  * Email Unsubscribe Manager
  * 
- * Este script permite identificar, listar y gestionar correos electrónicos relacionados con suscripciones
- * en Gmail, facilitando su eliminación selectiva o masiva.
+ * Script para identificar y gestionar correos de suscripción en Gmail.
+ * Permite buscar, listar y eliminar correos no deseados de forma selectiva o masiva.
  * 
- * Autor: Cascade AI
+ * Autor: 686f6c61
  * Fecha: 12/04/2025
+ * v0.2
  */
 
-// Constantes globales
+// Configuración global - Ajustar estos valores si necesitas personalizar el script
 const CONFIG = {
-  MAX_EMAILS: 500,        // Número máximo de correos a analizar (límite de la API de Gmail)
-  SHEET_NAME: "Correos de Suscripción", // Nombre de la hoja principal
-  CONFIG_SHEET_NAME: "Configuración",   // Nombre de la hoja de configuración
-  KEYWORDS_RANGE: "B2:B",  // Rango donde se almacenan las palabras clave personalizadas
-  CONFIRM_CELL: "B1",      // Celda para confirmar eliminación masiva
-  CONFIRM_TEXT: "CONFIRMAR" // Texto que debe contener la celda para confirmar
+  MAX_EMAILS: 500,        // Máx correos a procesar (500 = límite de Gmail API)
+  SHEET_NAME: "Correos de Suscripción", // Nombre hoja resultados
+  CONFIG_SHEET_NAME: "Configuración",   // Nombre hoja config
+  KEYWORDS_RANGE: "B2:B",  // Rango para keywords personalizadas
+  CONFIRM_CELL: "B1",      // Celda confirmación para borrado masivo
+  CONFIRM_TEXT: "CONFIRMAR" // Texto de confirmación (case sensitive)
 };
 
 /**
- * Crea el menú personalizado en la hoja de cálculo cuando se abre
+ * Crea el menú en la UI cuando se abre la hoja
+ * @return {void}
  */
 function onOpen() {
   try {
-    // Crear el menú directamente desde SpreadsheetApp
+    // Creamos el menú en la UI
     const ui = SpreadsheetApp.getUi();
     ui.createMenu('Gestor de Suscripciones')
-      .addItem('Buscar correos de suscripción', 'setupAndFindSubscriptionEmails')
-      .addItem('Eliminar correos seleccionados', 'deleteSelectedEmails')
-      .addItem('Eliminar todos los correos listados', 'deleteAllEmails')
+      .addItem('Buscar correos de suscripción', 'setupAndFindSubscriptionEmails') // Función principal
+      .addItem('Eliminar correos seleccionados', 'deleteSelectedEmails')           // Borrado selectivo
+      .addItem('Eliminar todos los correos listados', 'deleteAllEmails')           // Borrado masivo
       .addToUi();
   } catch (error) {
-    // Registrar el error pero no detener la ejecución
-    Logger.log('Error al crear el menú: ' + error.toString());
+    // Log del error sin romper ejecución
+    Logger.log('Error al crear menú: ' + error.toString()); // Probablemente ejecutando desde editor
   }
 }
 
 /**
- * Función que se ejecuta cuando el complemento se instala
+ * Handler para la instalación del complemento
+ * @param {Object} e - Evento de instalación
+ * @return {void}
  */
 function onInstall() {
   onOpen();
 }
 
 /**
- * Configura las hojas necesarias y ejecuta la búsqueda
+ * Prepara el entorno y ejecuta la búsqueda de correos
+ * Punto de entrada principal para la aplicación
+ * @return {void}
  */
 function setupAndFindSubscriptionEmails() {
   try {
-    // Obtener o crear la hoja de cálculo activa
+    // Get spreadsheet activa o crear nueva
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    // Configurar hoja principal si no existe
+    // Setup hoja principal (crear o limpiar si existe)
     let mainSheet = ss.getSheetByName(CONFIG.SHEET_NAME);
     if (!mainSheet) {
-      mainSheet = ss.insertSheet(CONFIG.SHEET_NAME);
+      mainSheet = ss.insertSheet(CONFIG.SHEET_NAME); // Nueva hoja
     } else {
-      mainSheet.clear();
+      mainSheet.clear(); // Reset si ya existe
     }
     
-    // Configurar hoja de configuración si no existe
+    // Setup hoja config (crear si no existe)
     let configSheet = ss.getSheetByName(CONFIG.CONFIG_SHEET_NAME);
     if (!configSheet) {
       configSheet = ss.insertSheet(CONFIG.CONFIG_SHEET_NAME);
-      setupConfigSheet(configSheet);
+      setupConfigSheet(configSheet); // Inicializar con defaults
     }
     
-    // Ejecutar la búsqueda de correos
-    findSubscriptionEmails(mainSheet, configSheet);
+    // Lanzar búsqueda principal
+    findSubscriptionEmails(mainSheet, configSheet); // Función core
     
   } catch (error) {
     Logger.log('Error en setupAndFindSubscriptionEmails: ' + error.toString());
@@ -80,7 +86,9 @@ function setupAndFindSubscriptionEmails() {
 }
 
 /**
- * Configura la hoja de configuración con valores predeterminados
+ * Inicializa la hoja de configuración con valores por defecto
+ * @param {Sheet} sheet - Hoja de configuración a inicializar
+ * @return {void}
  */
 function setupConfigSheet(sheet) {
   // Establecer encabezados y valores predeterminados
@@ -105,7 +113,10 @@ function setupConfigSheet(sheet) {
 }
 
 /**
- * Busca correos con palabras clave de suscripción y los muestra en la hoja
+ * Core del script: busca correos con keywords y los muestra en la hoja
+ * @param {Sheet} mainSheet - Hoja principal donde mostrar resultados
+ * @param {Sheet} configSheet - Hoja de configuración con keywords
+ * @return {void}
  */
 function findSubscriptionEmails(mainSheet, configSheet) {
   try {
@@ -263,7 +274,10 @@ function findSubscriptionEmails(mainSheet, configSheet) {
 }
 
 /**
- * Añade botones de acción a la hoja
+ * Crea los botones de acción en la hoja de resultados
+ * @param {Sheet} sheet - Hoja donde añadir los botones
+ * @param {Number} startRow - Fila donde colocar los botones
+ * @return {void}
  */
 function addActionButtons(sheet, startRow) {
   // Crear botones usando dibujos insertados
@@ -289,7 +303,8 @@ function addActionButtons(sheet, startRow) {
 }
 
 /**
- * Elimina los correos seleccionados con checkbox
+ * Elimina solo los correos marcados con checkbox
+ * @return {void}
  */
 function deleteSelectedEmails() {
   try {
@@ -376,7 +391,8 @@ function deleteSelectedEmails() {
 }
 
 /**
- * Elimina todos los correos listados (con confirmación de seguridad)
+ * Elimina todos los correos de la lista (requiere confirmación)
+ * @return {void}
  */
 function deleteAllEmails() {
   try {
@@ -466,7 +482,9 @@ function deleteAllEmails() {
 }
 
 /**
- * Función para manejar clics en la hoja (para los botones)
+ * Event handler para los clics en la hoja (maneja los botones)
+ * @param {Object} e - Evento de edición
+ * @return {void}
  */
 function onEdit(e) {
   // Verificar si el clic fue en uno de los botones
